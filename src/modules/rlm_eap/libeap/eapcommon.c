@@ -431,3 +431,102 @@ eap_packet_t *eap_vp2packet(VALUE_PAIR *vps)
 
 	return eap_packet;
 }
+
+VALUE_PAIR *eap_chbind_packet2vp(const eap_chbind_packet_t *packet, size_t len)
+{
+	size_t		size;
+	const uint8_t	*ptr;
+	VALUE_PAIR	*head = NULL;
+	VALUE_PAIR	**tail = &head;
+	VALUE_PAIR	*vp;
+
+	ptr = (const uint8_t *) packet;
+
+	do {
+		size = len;
+		if (size > 247) size = 247;
+
+		vp = paircreate(PW_VENDOR_SPECIFIC, VENDORPEC_UKERNA,
+				PW_TYPE_OCTETS);
+		if (!vp) {
+			pairfree(&head);
+			return NULL;
+		}
+		vp->vp_octets[0] = PW_UKERNA_CHBIND;
+		vp->vp_octets[1] = size;
+		memcpy(&vp->vp_octets[2], ptr, size);
+		vp->length = size + 2;
+
+		*tail = vp;
+		tail = &(vp->next);
+
+		ptr += size;
+		len -= size;
+	} while (len > 0);
+
+	return head;
+}
+
+
+/*
+ * Find the next EAP-CHANNEL-BINDING message in the 
+ * pair list
+ */
+static VALUE_PAIR *eap_chbind_find_pair(VALUE_PAIR *vps)
+{
+	VALUE_PAIR *result = pairfind(vps, PW_VENDOR_SPECIFIC, 
+				      VENDORPEC_UKERNA);
+        while (result && (result->vp_octets[0] != PW_UKERNA_CHBIND))
+		result = result->next;
+	return result;
+}
+
+/*
+ * Handles multiple EAP-channel-binding Message attrs
+ * ie concatenates all to get the complete EAP-channel-binding packet.
+ */
+size_t eap_chbind_vp2packet(VALUE_PAIR *vps, eap_chbind_packet_t **result)
+{
+	VALUE_PAIR *first, *vp;
+	eap_chbind_packet_t *eap_chbind_packet;
+	unsigned char *ptr;
+	size_t len;
+
+	first = eap_chbind_find_pair(vps);
+
+	/*
+	 *	Sanity check the length, BEFORE malloc'ing memory.
+	 */
+	len = 0;
+	for (vp = first; vp; vp = eap_chbind_find_pair(vp)) {
+		if ((vp->length < 2) ||
+		    (vp->length != vp->vp_octets[1]+2)) {
+			DEBUG("rlm_eap: Malformed EAP channel binding value pair.  Length in pair header does not match actual length");
+			return 0;
+		}
+		len += vp->vp_octets[1];
+	}
+
+	/*
+	 *	Now that we know the lengths are OK, allocate memory.
+	 */
+	eap_chbind_packet = (eap_chbind_packet_t *) malloc(len);
+	if (eap_chbind_packet == NULL) {
+		radlog(L_ERR, "rlm_eap: out of memory");
+		return 0;
+	}
+
+	/*
+	 *	Copy the data from EAP-Message's over to our EAP packet.
+	 */
+	ptr = (unsigned char *)eap_chbind_packet;
+
+	/* RADIUS ensures order of attrs, so just concatenate all */
+	for (vp = first; vp; vp = eap_chbind_find_pair(vp->next)) {
+		memcpy(ptr, vp->vp_octets+2, vp->length-2);
+		ptr += vp->length-2;
+	}
+
+	*result = eap_chbind_packet;
+	return len;
+}

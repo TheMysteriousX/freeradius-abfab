@@ -110,6 +110,14 @@ typedef struct eap_packet_t {
 	uint8_t		data[1];
 } eap_packet_t;
 
+/*
+ * Structure to represent eap channel binding packet format *on wire*
+ */
+typedef struct eap_chbind_packet_t {
+	uint8_t		code;
+	uint8_t		data[1];
+} eap_chbind_packet_t;
+
 
 /*
  * interfaces in eapcommon.c
@@ -120,5 +128,7 @@ extern int eap_wireformat(EAP_PACKET *reply);
 extern int eap_basic_compose(RADIUS_PACKET *packet, EAP_PACKET *reply);
 extern VALUE_PAIR *eap_packet2vp(const eap_packet_t *reply);
 extern eap_packet_t *eap_vp2packet(VALUE_PAIR *vps);
+extern VALUE_PAIR *eap_chbind_packet2vp(const eap_chbind_packet_t *packet, size_t len);
+extern size_t eap_chbind_vp2packet(VALUE_PAIR *vps, eap_chbind_packet_t **packet);
 
 #endif /* _EAP_TYPES_H */

@@ -954,6 +954,8 @@ int eapttls_process(EAP_HANDLER *handler, tls_session_t *tls_session)
 	const uint8_t *data;
 	size_t data_len;
 	REQUEST *request = handler->request;
+	eap_chbind_packet_t *chbind_packet;
+	size_t chbind_len;
 
 	rad_assert(request != NULL);
 
@@ -1192,6 +1194,36 @@ int eapttls_process(EAP_HANDLER *handler, tls_session_t *tls_session)
 
 		fprintf(fr_log_fp, "server %s {\n",
 			(fake->server == NULL) ? "" : fake->server);
+	}
+
+	/*
+	 *	Process channel binding here.
+	 */
+	chbind_len = eap_chbind_vp2packet(fake->packet->vps, &chbind_packet);
+	if (chbind_len > 0) {
+		/*CHBIND_REQ *req = chbind_allocate();
+		req->chbind_req = chbind_packet;
+		req->chbind_req_len = chbind_len;
+		if (fake->username) {
+			req->username = fake->username->vp_octets;
+			req->username_len = fake->username->length;
+		} else {
+			req->username = NULL;
+			req->username_len = 0;
+		}
+		chbind_process(request, req);
+		*/
+
+		/* free the chbind packet; we're done with it */
+		free(chbind_packet);
+
+		/* encapsulate response here */
+		/*pairadd(replyvps, eap_chbind_packet2vp(req->chbind_resp,
+						       req->chbind_resp_len));
+		*/
+
+		/* clean up chbind req */
+		/*chbind_free(req);*/
 	}
 
 	/*
