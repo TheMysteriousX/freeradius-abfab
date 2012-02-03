@@ -240,6 +240,7 @@
 #define PW_PACKET_TRANSMIT_COUNTER	1134
 #define PW_CACHED_SESSION_POLICY	1135
 
+#define PW_CHBIND_RESPONSE_CODE		1140
 /*
  *	Integer Translations
  */

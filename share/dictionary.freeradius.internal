@@ -224,6 +224,12 @@ ATTRIBUTE	MS-CHAP-New-NT-Password			1137	octets
 ATTRIBUTE	Stripped-User-Domain			1138	string
 ATTRIBUTE	Called-Station-SSID			1139	string
 
+#	For EAP channel binding
+
+ATTRIBUTE	Chbind-Response-Code			1140	integer
+
+VALUE	Chbind-Response-Code		success			2
+VALUE	Chbind-Response-Code		failure			3
 #
 #	Range:	1200-1279
 #		EAP-SIM (and other EAP type) weirdness.
