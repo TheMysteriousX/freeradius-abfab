@@ -1,0 +1,19 @@
+server chbind{
+    authorize {
+	if (GSS-Acceptor-Service-Name && outer.request:GSS-Acceptor-Service-Name != GSS-Acceptor-Service-Name ) {
+	    reject
+	}
+	update reply {
+	    GSS-Acceptor-Service-NAME == "%{GSS-ACCEPTOR-SERVICE-Name}"
+	    GSS-ACCEPTOR-Host-Name == "%{GSS-Acceptor-Host-Name}"
+	    GSS-Acceptor-Realm-Name == "%{GSS-Acceptor-Realm-Name}"
+	}
+	if (GSS-Acceptor-Service-Name || GSS-Acceptor-Realm-Name || GSS-Acceptor-Host-Name) {
+	    update control {
+		Chbind-Response-Code := success
+	    }
+	}
+	handled
+    }
+}
+
