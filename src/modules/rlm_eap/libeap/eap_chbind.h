@@ -50,20 +50,20 @@ RCSIDH(eap_chbind_h, "$Id$")
 #include "eap.h"
 
 /* Structure to hold channel bindings req/resp information */
-typdef struct CHBIND_REQ {
+typedef struct CHBIND_REQ {
   uint8_t       *username;		/* the username */
   size_t        username_len;           /* length of the username */
-  uint8_t	*chbind_req;            /* channel binding request buffer */
+  uint8_t	*chbind_req_pkt;            /* channel binding request buffer */
   size_t	chbind_req_len;         /* length of the request buffer */
   uint8_t       *chbind_resp;           /* channel binding response buffer */
   size_t        chbind_resp_len;        /* length of the response buffer */
-};
+} CHBIND_REQ;
 
 /* Structure to represent eap channel binding packet format */
 typedef struct chbind_packet_t {
   uint8_t code;
   uint8_t data[1];
-} eap_chbind_packet_t;
+} CHBIND_PACKET_T;
 
 /* Protocol constants */
 #define CHBIND_NSID_RADIUS		1
@@ -73,9 +73,10 @@ typedef struct chbind_packet_t {
 #define CHBIND_CODE_FAILURE             3
 
 /* Channel binding function prototypes */
-CHBIND_REQ *chbind_allocate();
-void *chbind_free(CHBIND_REQ *chbind);
+CHBIND_REQ *chbind_allocate(void);
+void chbind_free(CHBIND_REQ *chbind);
 int chbind_process(REQUEST *req, CHBIND_REQ *chbind_req);
-size_t chbind_get_data(chbind_packet_t *chbind_packet, size_t chbind_packet_len, int desired_nsid, uint8_t **radbuf_data);
-uint8_t *chbind_build_response(REQUEST *req, int *resp_len);
+size_t chbind_get_data(CHBIND_PACKET_T *chbind_packet, size_t chbind_packet_len, int desired_nsid, uint8_t **radbuf_data);
+uint8_t *chbind_build_response(REQUEST *req, size_t *resp_len);
 
+#endif /*_EAP_CHBIND_H*/
