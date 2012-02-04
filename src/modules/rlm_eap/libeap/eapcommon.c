@@ -484,7 +484,7 @@ size_t eap_chbind_vp2packet(VALUE_PAIR *vps, eap_chbind_packet_t **result)
 	 */
 	len = 0;
 	for (vp = first; vp; 
-	     vp = pairfind(vps, PW_UKERNA_CHBIND, VENDORPEC_UKERNA)) {
+	     vp = pairfind(vp->next, PW_UKERNA_CHBIND, VENDORPEC_UKERNA)) {
 		len += vp->length;
 	}
 
@@ -504,7 +504,7 @@ size_t eap_chbind_vp2packet(VALUE_PAIR *vps, eap_chbind_packet_t **result)
 
 	/* RADIUS ensures order of attrs, so just concatenate all */
 	for (vp = first; vp; 
-	     vp = pairfind(vps, PW_UKERNA_CHBIND, VENDORPEC_UKERNA)) {
+	     vp = pairfind(vp->next, PW_UKERNA_CHBIND, VENDORPEC_UKERNA)) {
 		memcpy(ptr, vp->vp_octets, vp->length);
 		ptr += vp->length;
 	}
