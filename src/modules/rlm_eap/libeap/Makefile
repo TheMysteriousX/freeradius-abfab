@@ -6,7 +6,7 @@
 
 include ../../../../Make.inc
 
-SRCS		= eapcommon.c eapcrypto.c eapsimlib.c fips186prf.c
+SRCS		= eapcommon.c eap_chbind.c eapcrypto.c eapsimlib.c fips186prf.c
 ifneq ($(OPENSSL_LIBS),)
 SRCS		+= eap_tls.c mppe_keys.c
 endif
