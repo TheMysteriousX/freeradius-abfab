@@ -25,6 +25,7 @@
 RCSID("$Id$")
 
 #include "eap_ttls.h"
+#include "eap_chbind.h"
 
 /*
  *    0                   1                   2                   3
@@ -263,6 +264,9 @@ static VALUE_PAIR *diameter2vp(REQUEST *request, SSL *ssl,
 			pairfree(&first);
 			return NULL;
 		}
+		if (vendor == VENDORPEC_UKERNA) {
+			RDEBUG("Received UKERNA attr %d!", attr);
+		}	
 
 		/*
 		 *	If it's a type from our dictionary, then
@@ -1201,8 +1205,9 @@ int eapttls_process(EAP_HANDLER *handler, tls_session_t *tls_session)
 	 */
 	chbind_len = eap_chbind_vp2packet(fake->packet->vps, &chbind_packet);
 	if (chbind_len > 0) {
-		/*CHBIND_REQ *req = chbind_allocate();
-		req->chbind_req = chbind_packet;
+		CHBIND_REQ *req = chbind_allocate();
+		RDEBUG("received chbind request");
+		req->chbind_req_pkt = (uint8_t *)chbind_packet;
 		req->chbind_req_len = chbind_len;
 		if (fake->username) {
 			req->username = fake->username->vp_octets;
@@ -1212,18 +1217,22 @@ int eapttls_process(EAP_HANDLER *handler, tls_session_t *tls_session)
 			req->username_len = 0;
 		}
 		chbind_process(request, req);
-		*/
 
 		/* free the chbind packet; we're done with it */
 		free(chbind_packet);
 
 		/* encapsulate response here */
-		/*pairadd(replyvps, eap_chbind_packet2vp(req->chbind_resp,
-						       req->chbind_resp_len));
-		*/
+		if (req->chbind_resp_len > 0) {
+			RDEBUG("sending chbind response");
+			pairadd(&fake->reply->vps,
+				eap_chbind_packet2vp((eap_chbind_packet_t *)req->chbind_resp,
+						     req->chbind_resp_len));
+		} else {
+			RDEBUG("no chbind response");
+		}
 
 		/* clean up chbind req */
-		/*chbind_free(req);*/
+		chbind_free(req);
 	}
 
 	/*

@@ -446,16 +446,14 @@ VALUE_PAIR *eap_chbind_packet2vp(const eap_chbind_packet_t *packet, size_t len)
 		size = len;
 		if (size > 247) size = 247;
 
-		vp = paircreate(PW_VENDOR_SPECIFIC, VENDORPEC_UKERNA,
+		vp = paircreate(PW_UKERNA_CHBIND, VENDORPEC_UKERNA,
 				PW_TYPE_OCTETS);
 		if (!vp) {
 			pairfree(&head);
 			return NULL;
 		}
-		vp->vp_octets[0] = PW_UKERNA_CHBIND;
-		vp->vp_octets[1] = size;
-		memcpy(&vp->vp_octets[2], ptr, size);
-		vp->length = size + 2;
+		memcpy(vp->vp_octets, ptr, size);
+		vp->length = size;
 
 		*tail = vp;
 		tail = &(vp->next);
@@ -469,19 +467,6 @@ VALUE_PAIR *eap_chbind_packet2vp(const eap_chbind_packet_t *packet, size_t len)
 
 
 /*
- * Find the next EAP-CHANNEL-BINDING message in the 
- * pair list
- */
-static VALUE_PAIR *eap_chbind_find_pair(VALUE_PAIR *vps)
-{
-	VALUE_PAIR *result = pairfind(vps, PW_VENDOR_SPECIFIC, 
-				      VENDORPEC_UKERNA);
-        while (result && (result->vp_octets[0] != PW_UKERNA_CHBIND))
-		result = result->next;
-	return result;
-}
-
-/*
  * Handles multiple EAP-channel-binding Message attrs
  * ie concatenates all to get the complete EAP-channel-binding packet.
  */
@@ -492,23 +477,19 @@ size_t eap_chbind_vp2packet(VALUE_PAIR *vps, eap_chbind_packet_t **result)
 	unsigned char *ptr;
 	size_t len;
 
-	first = eap_chbind_find_pair(vps);
+	first = pairfind(vps, PW_UKERNA_CHBIND, VENDORPEC_UKERNA);
 
 	/*
-	 *	Sanity check the length, BEFORE malloc'ing memory.
+	 *	Compute total length
 	 */
 	len = 0;
-	for (vp = first; vp; vp = eap_chbind_find_pair(vp)) {
-		if ((vp->length < 2) ||
-		    (vp->length != vp->vp_octets[1]+2)) {
-			DEBUG("rlm_eap: Malformed EAP channel binding value pair.  Length in pair header does not match actual length");
-			return 0;
-		}
-		len += vp->vp_octets[1];
+	for (vp = first; vp; 
+	     vp = pairfind(vps, PW_UKERNA_CHBIND, VENDORPEC_UKERNA)) {
+		len += vp->length;
 	}
 
 	/*
-	 *	Now that we know the lengths are OK, allocate memory.
+	 *	Now that we know the length, allocate memory.
 	 */
 	eap_chbind_packet = (eap_chbind_packet_t *) malloc(len);
 	if (eap_chbind_packet == NULL) {
@@ -522,9 +503,10 @@ size_t eap_chbind_vp2packet(VALUE_PAIR *vps, eap_chbind_packet_t **result)
 	ptr = (unsigned char *)eap_chbind_packet;
 
 	/* RADIUS ensures order of attrs, so just concatenate all */
-	for (vp = first; vp; vp = eap_chbind_find_pair(vp->next)) {
-		memcpy(ptr, vp->vp_octets+2, vp->length-2);
-		ptr += vp->length-2;
+	for (vp = first; vp; 
+	     vp = pairfind(vps, PW_UKERNA_CHBIND, VENDORPEC_UKERNA)) {
+		memcpy(ptr, vp->vp_octets, vp->length);
+		ptr += vp->length;
 	}
 
 	*result = eap_chbind_packet;
