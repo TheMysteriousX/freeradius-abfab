@@ -106,22 +106,39 @@ int chbind_process(REQUEST *req, CHBIND_REQ *chbind_req)
   pairadd(&fake->packet->vps, vp);*/
 
   /* Add the channel binding attributes to the fake packet */
-  if (0 != (datalen = chbind_get_data((CHBIND_PACKET_T *)chbind_req->chbind_req_pkt, chbind_req->chbind_req_len, 
+  if (0 != (datalen = chbind_get_data((CHBIND_PACKET_T *)chbind_req->chbind_req_pkt, 
+				      chbind_req->chbind_req_len, 
 				      CHBIND_NSID_RADIUS, &attr_data))) {
-    if (rad_attr2vp(NULL, NULL, NULL, attr_data, datalen, &vp) <= 0) {
-      /* If radaddr2vp fails, return NULL string for channel binding response */
-      request_free(&fake);
-      return PW_AUTHENTICATION_ACK;
-    }
-    if (vp)
-      pairadd(&fake->packet->vps, vp);
+	  while(datalen > 0) {
+		  int mylen = rad_attr2vp(NULL, NULL, NULL, attr_data, datalen, &vp);
+		  if (mylen <= 0) {
+			  /* If radaddr2vp fails, return NULL string for 
+			     channel binding response */
+			  request_free(&fake);
+			  return PW_AUTHENTICATION_ACK;
+		  }
+		  /* TODO: need to account for the possibility of rad_attr2vp generating 
+		     multiple vps */
+		  if (vp)
+			  pairadd(&fake->packet->vps, vp);
+		  attr_data += mylen;
+		  datalen -= mylen;
+	  }
   }
 
   /* Set virtual server based on configuration for channel bindings,
      this is hard-coded to "chbind" for now */
-  fake->server = pairmake("Virtual-Server", "chbind", T_OP_EQ);
+  fake->server = "chbind";
 
   /* Call rad_authenticate */
+  if ((debug_flag > 0) && fr_log_fp) {
+	  DEBUG("prcoessing chbind request");
+
+	  debug_pair_list(fake->packet->vps);
+
+	  fprintf(fr_log_fp, "server %s {\n",
+	    (fake->server == NULL) ? "" : fake->server);
+  }
   rcode = rad_authenticate(fake);
 
   switch(rcode) {
@@ -183,7 +200,7 @@ size_t chbind_get_data(CHBIND_PACKET_T *chbind_packet,
 
 uint8_t *chbind_build_response(REQUEST *req, size_t *resp_len)
 {
-  uint8_t *resp, *rp = NULL;
+  uint8_t *resp;
   uint16_t rlen, len = 0;
   VALUE_PAIR *vp = NULL;
 
@@ -200,11 +217,16 @@ uint8_t *chbind_build_response(REQUEST *req, size_t *resp_len)
 
   resp[3] = CHBIND_NSID_RADIUS;
 
+  if ((debug_flag > 0) && fr_log_fp) {
+	  DEBUG("Sending chbind response: code %i\n", (int )(resp[0]));
+	  debug_pair_list(req->reply->vps);
+	  DEBUG("end chbind response\n");
+  }
   /* Encode the chbind attributes into the response */
   for (vp = req->reply->vps, rlen = 4; 
        (vp != NULL) && (rlen < MAX_PACKET_LEN + 4); 
        rlen += len) {
-    len = rad_vp2attr(NULL, NULL, NULL, vp, resp[rlen], (MAX_PACKET_LEN + 4) - rlen);
+    len = rad_vp2attr(NULL, NULL, NULL, &vp, &resp[rlen], (MAX_PACKET_LEN + 4) - rlen);
   }
 
   /* Write the length field into the header */
