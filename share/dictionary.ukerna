@@ -15,6 +15,6 @@ ATTRIBUTE	GSS-Acceptor-Host-Name		129	string
 ATTRIBUTE	GSS-Acceptor-Service-Specific	130	string
 ATTRIBUTE	GSS-Acceptor-Realm-Name		131	string
 ATTRIBUTE	SAML-AAA-Assertion		132	string
-ATTRIBUTE	EAP-Channel-Binding-Message	134	octets
+ATTRIBUTE	EAP-Channel-Binding-Message	135	octets
 
 END-VENDOR UKERNA
