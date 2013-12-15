@@ -153,11 +153,11 @@ static void tr_response_func( TIDC_INSTANCE *inst,
 	hs->type = HOME_TYPE_AUTH;
 	hs->ipaddr = home_server_ip;
         hs->src_ipaddr.af = home_server_ip.af;
-	hs->name = strdup(nametemp);
-	hs->hostname = strdup(nametemp);
+	hs->name = talloc_strdup(hs, nametemp);
+	hs->hostname = talloc_strdup(hs, nametemp);
 	  hs->port = 2083;
 	hs->proto = IPPROTO_TCP;
-	hs->secret = strdup("radsec");
+	hs->secret = talloc_strdup(hs, "radsec");
 	hs->tls = construct_tls(inst, hs, server);
 	if (hs->tls == NULL) goto error;
 	if (!realms_home_server_add(hs, NULL, 0))
@@ -185,7 +185,7 @@ static void tr_response_func( TIDC_INSTANCE *inst,
 		
  error:
   if (hs)
-    free(hs);
+    talloc_free(hs);
   if (pool && (!pool_added)) {
     if (pool->name)
       free((char *) pool->name);
