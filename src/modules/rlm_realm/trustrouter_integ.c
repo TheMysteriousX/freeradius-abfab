@@ -36,6 +36,7 @@ static fr_tls_server_conf_t *construct_tls( TIDC_INSTANCE *inst,
   unsigned char *key_buf = NULL;
   ssize_t keylen;
   char *hexbuf = NULL;
+  char *psk_identity = NULL;
   int i;
 
   if (tls == NULL)
@@ -46,13 +47,21 @@ static fr_tls_server_conf_t *construct_tls( TIDC_INSTANCE *inst,
     DEBUG2("DH error");
     goto error;
   }
-  hexbuf = rad_malloc(keylen*2 + 1);
+  hexbuf = talloc_size(tls, keylen*2 + 1);
   if (hexbuf == NULL)
     goto error;
   tr_bin_to_hex(key_buf, keylen, hexbuf,
 	     2*keylen + 1);
   tls->psk_password = hexbuf;
-  tls->psk_identity = tr_name_strdup(server->key_name);
+  psk_identity = tr_name_strdup(server->key_name);
+  if (psk_identity == NULL) {
+    goto error;
+  } else {
+    tls->psk_identity = talloc_strdup(tls, psk_identity);
+    free(psk_identity);
+  }
+  if (tls->psk_identity == NULL)
+    goto error;
 
   fprintf (stderr, "construct_tls: Client key generated (key name = %s):\n", tls->psk_identity);
   for (i = 0; i < keylen; i++) {
@@ -60,7 +69,9 @@ static fr_tls_server_conf_t *construct_tls( TIDC_INSTANCE *inst,
   }
   printf("\n");
 
-  tls->cipher_list = strdup("PSK");
+  tls->cipher_list = talloc_strdup(tls, "PSK");
+  if (tls->cipher_list == NULL)
+    goto error;
   tls->fragment_size = 4200;
   tls->ctx = tls_init_ctx(tls, 1);
   if (tls->ctx == NULL)
@@ -75,7 +86,6 @@ static fr_tls_server_conf_t *construct_tls( TIDC_INSTANCE *inst,
     }
     if (hexbuf) {
       memset(hexbuf, 0, keylen*2);
-      free(hexbuf);
     }
     if (tls)
       talloc_free(tls);
@@ -124,13 +134,13 @@ static void tr_response_func( TIDC_INSTANCE *inst,
   pool = home_pool_byname(home_pool_name, HOME_TYPE_AUTH);
   if (pool == NULL) {
     size_t i = 0;
-    pool = rad_malloc(sizeof(*pool) + num_servers *sizeof(home_server *));
+    pool = talloc_size(NULL, sizeof(*pool) + num_servers *sizeof(home_server *));
 		  
     if (pool == NULL) goto error;
     memset(pool, 0, sizeof(*pool));
     pool->type = HOME_POOL_CLIENT_PORT_BALANCE;
     pool->server_type = HOME_TYPE_AUTH;
-    pool->name = strdup(home_pool_name);
+    pool->name = talloc_strdup(pool, home_pool_name);
     if (pool->name == NULL) goto error;
     pool->num_home_servers = num_servers;
 
@@ -147,7 +157,7 @@ static void tr_response_func( TIDC_INSTANCE *inst,
       } else {
 	char nametemp[INET_ADDRSTRLEN];
 	inet_ntop(home_server_ip.af, &home_server_ip.ipaddr, nametemp, sizeof(nametemp));
-	hs = talloc_zero(NULL, home_server);
+	hs = talloc_zero(pool, home_server);
 	if (!hs) return;
 	memset(hs, 0, sizeof(*hs));
 	hs->type = HOME_TYPE_AUTH;
@@ -187,9 +197,7 @@ static void tr_response_func( TIDC_INSTANCE *inst,
   if (hs)
     talloc_free(hs);
   if (pool && (!pool_added)) {
-    if (pool->name)
-      free((char *) pool->name);
-    free(pool);
+    talloc_free(pool);
   }
   if (nr)
     free(nr);
