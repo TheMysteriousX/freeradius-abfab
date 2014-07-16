@@ -1211,6 +1211,31 @@ STATE_MACHINE_DECL(request_response_delay)
 	}
 }
 
+static void retrieve_tls_identity(REQUEST *request)
+{
+	/* 
+	 * copy tls identity from sock vps to new request
+	 */
+	listen_socket_t *sock = NULL;
+#ifdef WITH_ACCOUNTING
+	if (request->listener->type != RAD_LISTEN_DETAIL)
+#endif
+	{
+		sock = request->listener->data;
+	}
+
+	if (sock && sock->ssn && sock->ssn->ssl) {
+		const char *identity = SSL_get_psk_identity(sock->ssn->ssl);
+		if (identity) {
+			RDEBUG("Retrieved psk identity: %s", identity);
+			VALUE_PAIR *vp = pairmake_packet("TLS-PSK-Identity", identity, T_OP_SET);
+			if (vp) {
+				RDEBUG("Set tls-psk-identity: %s", identity);
+			}
+		}
+	}
+}
+
 
 static int CC_HINT(nonnull) request_pre_handler(REQUEST *request, UNUSED int action)
 {
@@ -1234,6 +1259,8 @@ static int CC_HINT(nonnull) request_pre_handler(REQUEST *request, UNUSED int act
 	}
 
 	if (!request->packet->vps) { /* FIXME: check for correct state */
+		retrieve_tls_identity(request);
+
 		rcode = request->listener->decode(request->listener, request);
 
 #ifdef WITH_UNLANG
